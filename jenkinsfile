@@ -1,37 +1,32 @@
-pipeline {
-    agent any
-    stages{
-        stage('Build'){
-            steps {
-                sh 'mvn clean package'
-            }
-            post {
-                success {
-                    echo 'Now Archiving...'
-                    archiveArtifacts artifacts: 'target/*.war'
-                }
-            }
-        }
-        
-        stage ('Deploy to Production'){
-            steps{
-                timeout(time:5, unit:'DAYS'){
-                    input message:'Approve PRODUCTION Deployment?'
-                }
 
-                build job: 'deploy'
-            }
-            post {
-                success {
-                    echo 'Code deployed to Production.'
-                }
-
-                failure {
-                    echo ' Deployment failed.'
-                }
-            }
-        }
-
-
+def app
+pipeline{
+  agent any
+  stages{
+    stage('Build'){
+	  steps {
+	    sh 'mvn clean compile package'
+	  }
+	  post {
+	    success {
+		  echo 'Now archiving...'
+		  archiveArtifacts artifacts: 'target/*.war'
+		  }
+		}
     }
-}
+	stage('BuildDockerimage'){
+	  steps {
+	    app = docker.build("saravanapk94/samplewar")
+		}
+	}
+	stage('Push Image'){
+	  steps {
+	  docker.withRegistry('https://registry.hub.docker.com', 'docker-hub')
+	  app.push("${env.BUILD_NUMBER}")
+	  }
+	  post {
+	  echo 'Image push success'
+	  }
+	}
+	}
+	}
